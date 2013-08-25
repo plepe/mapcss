@@ -1,0 +1,58 @@
+This page contains proposed MapCSS eval() syntax.
+
+== Data types ==
+
+EIAS: ''Everything is a string''.
+
+When used in different contexts, it may be considered as:
+* ''string''
+: String is enclosed in '''"'''quotation marks'''"'''. It can be:
+:* concatenated using '''.''' operator.
+:* checked for being a number using '''num()''' function. In case it can't be converted, "" (empty string) is returned.
+:* converted to a number using '''metric()''' or '''zmetric()''' function. These functions should return (heuristically?) parsed width/height in map units. E.g. on "2 meters in 1 pixel" scale '''metric("3m")''' should return 1.5. '''zmetric()''' does the same for elevations. In the case it can't be converted, "" (empty string) should be returned.
+* ''number''. May be enclosed in '''"'''quotation marks'''"'''. 
+: Can be:
+:* converted to string using '''str()''' function (actually does nothing, as any number is a string)
+:* multiplied/divided/substracted/added using usual '''*''', '''/''', '''-''', '''+'''
+:* square-rooted using '''sqrt()'''
+:* integer part is returned using '''int()''' (ceil/floor/round? - no, what it says – integer part) function
+: Consequences:
+:* "2" + 4 == 6;
+:* "2" == 2;
+:* But:
+:*: 2/0 == "";
+* ''none'' / "" (empty string)
+:* ''none'' is a constant equal to empty string
+:* in any number operation on ''none'', it's equal to 0.
+:* if ''none'' is the final evaluation result, it's considered that a property isn't applied at all.
+: Consequences:
+:* 2."" == 2;
+:* 2+"" == 2;
+:* 2/"" == "";
+:* ''none'' == "";
+* ''boolean''
+:* expression is considered "false" if it equals to "0", "no", "false" or "" (empty string);
+:* expression is considered "true" otherwise.
+:* can be turned to a canonical form using '''boolean()''' function
+:* canonical form for "true" is "true", canonical form for "false" is "false"
+: Consequences:
+:* boolean("yes") == boolean("true")
+
+== Operations ==
+
+* Comparison operators: '''==''', '''<>''', '''!=''', '''<''', '''>''', '''<=''', '''>='''. Perform canonization for numbers prior to comparison, so "2" == "02". Implicit canonization doesn't convert numeric value to boolean and vice versa, however.
+* String comparison operators: '''eq''', '''ne''': "2" ne "02", "2" eq "2".
+
+== Built-in functions ==
+* '''tag('''key''':'''''string''''')'''
+: returns value of a tag, described by key. In the case there's no such tag, returns ''none''
+* '''prop('''key''':'''''string''''')'''
+: returns value of a property, described by key. In the case there's no such property, returns ''none''
+* '''cond('''expr''', '''if''', '''else''')'''
+: returns ''if'' if ''expr'' is true, ''else'' otherwise.
+* '''any('''k1''', '''k2''', ...)'''
+: returns first ''k'' that's not ''none''
+* '''max('''x1''', '''x2''', ...)'''
+: returns maximum
+* '''min('''x1''', '''x2''', ...)'''
+: returns minimum

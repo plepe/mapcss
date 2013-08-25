@@ -1,0 +1,419 @@
+MapCSS is a CSS-like language for map stylesheets.
+
+This page contains second draft of MapCSS format.
+
+Check also some kind of [[BNF.mediawiki|BNF]], [[eval.mediawiki|eval]] syntax, and an [https://github.com/Gubaer/dart-mapcss/tree/master/grammar antlr grammar].
+
+== Language Structure ==
+
+A MapCSS stylesheet is made up of a series of rules about how to style elements of a map.  Each rule has two parts:
+* One or more selector, used to determine to which map elements the statement applies.
+* One or more declaration, used to determine the style which should be applied to matching elements.
+
+Additionally, comments can be made using "//" to comment the rest of the line out, or using "/*" and "*/" to comment out everything between these end points.
+
+=== Selectors ===
+
+Selectors determine whether a rule applies to a particular object or not.  They may test several things: the type of the object; the zoom level of the render; the tags applied to the object; the pseudo-classes and classes applied to the object.
+
+==== Types ====
+
+The selector's type may be any one of the core OSM object types, plus some other interesting cases:
+* node
+* way
+* relation
+* area (A way where the start and finish nodes are the same node, or area=yes has been set)
+* line (A way where the start and finish nodes are not the same node, or area=no has been set)
+* canvas (The background of the render)
+* * (Any of the above)
+
+==== Tests ====
+
+To test what tags are applied to an object you can write the condition in square brackets after the object type, these binary tests may use any of these operators: =; !=; =~; >; <; >=; <=. 
+ way[highway=primary]     /* Matches against all ways with the highway tag set to primary */
+ way[highway=~/.*ary/]    /* Matches against all ways with a highway that matches the regex ".*ary" */
+
+Note that strings used here must start with a letter or '-' character and must contain only letters, numbers and '-' characters.  If you need to use a tag name or value that contains any other characters the string must be enclosed in quotes:
+ way[highway="~/.*ary/"] /* Matches against all ways with the highway tag set to"~/.*ary/" */
+ way[highway='a"b']      /* Matches against all ways with the highway tag set to 'a"b' */
+ way[highway="a\"b"]     /* Matches against all ways with the highway tag set to 'a"b' */
+
+You can also use unary tests to find out if a tag is set or not:
+ way[highway]       /* Matches against all ways with the highway tag set */
+ way[!highway]      /* Matches against all ways with the highway tag not set (or set to no/false) */
+ way.highway        /* Matches against all ways with the highway class set */
+
+To test more than one condition on a way, simply add more conditions after the type.  To match against this rule, all conditions must be met.
+ node[place=city][population<50000]    /* Matches against all nodes tagged place=city, whose population tag has a value of less than 50000 */
+ node[place=city][population>=50000]   /* Matches against all nodes tagged place=city, whose population tag has a value of greater than or equal to 50000 */
+
+You can restrict rules to only affecting elements when rendering is at certain zoom levels.  If this is not specified, the rule applies to all zoom levels:
+ way|z12[population<50000]    /* Matches against all ways whose population tag has a value of less than 50000, as long as the renderer is currently working at zoom level 12. */
+ way|z1-11[population>50000]  /* Matches against all ways whose population tag has a value of less than 50000, as long as the renderer is currently working at any zoom level between 1 and 11. */
+Theoretically this could be extended to cope with other units of measurement, e.g. way|s50000 for a 1:50,000 printed map.
+
+==== Combining selectors ====
+
+You can create an or condition by grouping selectors with a comma:
+ way[highway=primary], way[highway=trunk]    /* Matches against all ways with a highway tag set to primary or trunk. */
+
+By grouping selectors with no comma between them, you create a descendant selector.  This matches against the latter selector, if and only if the object is found as a part of another object matching the first selector:
+ way[highway=footpath] node[barrier=gate]  /* Matches against nodes with barrier=gate set which are on ways with highway=footpath set */
+ relation[type=route] way[highway]         /* Matches against ways with the highway tag set which are within a relation with type=route set */
+
+When combining selectors like this, pseudo-tags are added to elements to allow you to access extra data.  Here the role pseudo tag is added to the way object to indicate its role within the parent relation:
+ relation[type=route] way[role=proposed]   /* Matches ways within a relation with type=route set, whose role is set to proposed */
+
+==== Syntactic notes ====
+
+You can be liberal in how we treat white space. The quantity of whitespace is irrelevant (1 space vs. three tabs, a CR and a space), but the presence or absence of whitespace in selectors is significant. This means that we can for example write the above selector as so:
+ relation[type=route]
+  way[highway]
+
+But, if we were to write it like this (with white space between the object type and the tests), it would not parse:
+ relation [type=route]
+   way [highway]
+
+=== Declarations ===
+
+Declarations are written by enclosing a set of style specifiers in curly braces:
+ {
+    opacity: 0.5;
+    color: rgb(1.0, 0.0, 0.0);
+ }
+
+See the [[#Vocabulary]] section for a listing of all available specifiers and which renderers support them.
+
+Declarations may also be used to set the value of certain tags on an object:
+ { set tag=value; }   /* set a tag */
+ { set tag; }         /* set a tag to 'yes' */
+
+Finally, you can compute values using an [[eval.mediawiki|eval]] instruction:
+ { opacity: eval("tag('population')/100000"); }
+ { set width_in_metres=eval("tag('lanes')*3"); }
+
+=== Classes ===
+
+You can set tags beginning with a full-stop to simulate classes:
+ { set .minor_road; }
+
+You can then use the .minor_road test (as above) in the selector:
+ way.minor_road
+
+This opens up possibilities when used with the @import rule and a media type. You can have a set of rules for each medium (e.g. direct from an OSM database, or from the product of osm2pgsql), each of which set pseudo-classes. The main stylesheet is then applied to these styles:
+  @import url("osmtags.css") osmtags;
+  @import url("osmpostgis.css") osmpostgis;
+
+=== Pseudo-classes ===
+
+Interactive clients can support :hover and :active pseudo-classes.
+
+== Vocabulary ==
+
+=== Canvas properties ===
+
+{| class="wikitable"  
+!
+! definition
+! example
+|-
+|antialiasing 
+|How to antialias map: 'full' (default), 'text' (lines aren't smooth, text is), 'none' (no antialiasing performed)
+|
+|-
+| fill-color
+| Colour of the canvas - either a hex value or a CSS colour name     
+| fill-color: lightgreen
+|-
+| fill-opacity
+| How transparent the fill is, from 0 (transparent) to 1 (opaque)
+| fill-opacity: 0.2
+|-
+| fill-image
+| The URL (absolute or relative) of an image with which to fill the canvas   
+| fill-image: url('fills/grass.png')
+|}
+
+=== Line properties ===
+
+{| class="wikitable"   
+!
+! definition
+! example
+|-
+| z-index
+| Specifies a sublayer within an OSM layer
+| 
+|-
+| width
+| The line width in pixels.
+| width: 5
+|-
+| color
+| Colour of the line - a hex value, a CSS colour name or an rgb colour specifier
+| color: blue<br/>color: #0000FF<br/>color: rgb(0.0, 0.0, 1.0)   
+|-
+| opacity
+| How transparent the line is, from 0 (transparent) to 1 (opaque)
+| opacity: 0.5
+|-
+| dashes
+| An array of alternating on/off lengths
+| dashes: 2,2,4,2
+|-
+| image   
+|The URL of an image to use for filling the line
+|
+|-
+| linecap
+| The style for the end of the line: 'none' (default), 'round' or 'square'   
+|
+|-
+| linejoin
+| The style for line corners: 'round' (default), 'miter' or 'bevel'
+|
+|-
+| fill-color 
+| Colour in which to fill the area, if closed - hex value or CSS colour
+| fill-color: lightgreen
+|-
+| fill-opacity  
+| How transparent the fill is, from 0 (transparent) to 1 (opaque)
+| fill-opacity: 0.2
+|-
+| fill-image
+| The URL (absolute or relative) of an image with which to fill the area
+| fill-image: url('fills/grass.png')
+|-
+| casing-width
+| Width of the casing (border) of the line. For example, a 1 pixel wide casing on either side would be specified as casing-width:1 '''(change from MapCSS 0.1)'''
+| casing-width: 9
+|-
+| casing-color
+| The colour (hex or CSS name) of the casing
+|
+|-
+| casing-opacity
+| The transparency of the casing
+|
+|-
+| casing-dashes
+| An array of alternating on/off lengths
+|
+|-
+| casing-linecap
+|  Style for the end of the casing line (defaults to value of "linecap")    
+|
+|-
+| casing-linejoin
+| The style for casing line corners  (defaults to value of "linejoin")
+|
+|-
+|extrude
+|  Height of extruded line. 
+| extrude: eval('zmetric(tag("height"))') 
+|-
+| extrude-edge-color
+| Color of edges of 3D object (defaults to value of "color")
+|
+|-
+| extrude-edge-opacity
+| Opacity of extruded edges (defaults to value of "opacity")
+|
+|-
+|  extrude-face-color
+| Color of extruded faces (defaults to value of "fill-color")
+|
+|-
+| extrude-face-opacity
+|How transparent extruded faces are (defaults to value of "fill-opacity")
+|
+|}
+
+=== Point/icon properties ===
+These can apply to nodes or to areas (closed ways). In case of areas, it is up to the renderer to decide where to place the icon within the area.
+{| class="wikitable" 
+! 
+! definition
+! example
+|-
+| icon-image
+| URL (absolute or relative) of an image to use as an icon.
+| icon-image: url('icons/pharmacy.png')
+|-
+| icon-width
+| Either a unit specification or a scaling facor in %. If only one of icon-width and icon-height is given, a aspect-ratio-preserving scaling is applied in both directions.
+| icon-width: 25, icon-width: 70%  
+|-
+| icon-height
+| Either a unit specification or a scaling facor in %. If only one of icon-width and icon-height is given, a aspect-ratio-preserving scaling is applied in both directions.
+| icon-height: 25; icon-height: 70%  
+|-
+| icon-opacity
+| Opacity of the icon image
+| icon-opacity: 0.3
+|}
+
+=== Label properties ===
+
+{| class="wikitable" 
+! 
+! definition
+! example
+|-
+| font-family
+| Name of the font to use
+| font-family: DejaVu   
+|-
+| font-size
+| Size of the text (integer number)
+| font-size: 12
+|-
+| font-weight
+| 'bold' or 'normal' 
+| font-weight: bold
+|-
+| font-style
+| 'italic' or 'normal'
+| font-style: italic
+|-
+| font-variant
+| 'normal' (default) or 'small-caps' '''(new in MapCSS 0.2)'''
+| font-style: small-caps
+|-
+| text-decoration
+| 'none' or 'underline'
+| text-decoration: underline
+|-
+| text-transform
+| 'none', 'uppercase', 'lowercase' or 'capitalize'
+| text-transform: uppercase
+|-
+| text-color
+| A hex value or CSS colour name
+| text-color: #07CF20
+|-
+| text-opacity
+| How transparent the text is, from 0 (transparent) to 1 (opaque)
+| text-opacity: 0.75
+|-
+| text-position
+| Whether the text follows the path of the way ('line') or is centred on the area ('center')
+| text-position: center
+|-
+| text-offset
+| The vertical offset from the centre of the way or point. An offset of 5, on a line of width 3, would put the text "along" the line rather than within it. Similarly, an offset of 8, on a point with a 16-high icon, would put the text below the icon.
+| text-offset: -5
+|-
+| max-width
+| The maximum width of a text label for a point, after which it should wrap onto the next line
+| max-width: 30
+|-
+| text
+| The tag key whose value is used for the label. For example, 'text: name' would render the name tag
+| text: name
+|-
+| text-halo-color
+| The colour (hex or CSS) of the 'halo' or 'pull-out' used to make the text stand out from features underneath it
+| text-halo-color: white
+|-
+| text-halo-radius
+| The radius of the halo
+| text-halo-radius: 2
+|}
+
+<references/>
+
+=== Shield properties ===
+
+[[File:Mapcss-shield.png]]
+
+{| class="wikitable"  
+!
+! definition
+! example
+|-
+| shield-color 
+| Colour of the shield - either a hex value or a CSS colour name
+| shield-color: blue<br/>shield-color: #0000FF    
+|-
+| shield-opacity 
+| How transparent the shield is, from 0 (transparent) to 1 (opaque)  
+| shield-opacity: 0.5  
+|-
+| shield-frame-color
+|Color of shield's frame
+| 
+|-
+| shield-frame-width
+|Width of the frame. If 0, no frame is rendered
+|
+|-
+| shield-casing-color
+|Color of shield's casing.  
+|
+|-
+|shield-casing-width
+|Width of shield's casing
+|
+|-
+|shield-text
+|Text to render on shield. 
+|
+|-
+| shield-image 
+| The URL (absolute or relative) of an image to use as a background for text.
+| fill-image: url('fills/grass.png')
+|-
+| shield-shape
+|Shape of the shield. Can be 'rounded' or 'rectangular'
+|
+|}
+
+== Application of Styles ==
+
+=== Rendered Objects ===
+
+Only ways and nodes should be rendered.  Relations should be used only for applying a different style to a way or node.  For example, to colour a route red, you could use the following style:
+
+ relation[type=route] way[highway] { color: red; }
+
+But not this style:
+
+ relation[type=route] { color: red; }
+
+The one possible exception to this rule is multipolygon relations, which some renderers may interpret as area primitives.
+
+=== Rendering Order ===
+Objects should be rendered in the following order (from front to back):
+
+# Objects with lower layer should always be rendered first.
+# Within a layer, first all fills are rendered, then all casings, then all strokes, then all icons and labels.
+# Within each of those categories, objects are ordered according to z-index.
+# If all of the above are equal, the order is undefined.
+
+=== Order of Application ===
+
+A stylesheet describes how to determine the style for any given way or node.  To determine the style you must step through rules in order determining whether they apply to any given way or note, if a later rule provides a contradictory style to an earlier one, the later style overwrites the old one.  Note, this means it is not valid to process descendant selectors at the time that the parent is matched, as this can lead to the incorrect style being generated as shown below:
+
+Take for example the following style sheet:
+ node
+ {
+   width: 2;
+   color: blue;
+ }
+ 
+ way node
+ {
+   width: 2;
+   color: red;
+ }
+
+Applied to the following objects (most details omitted for conciseness):
+
+ <way id="1">
+   <nd id="2" />
+ </way>
+ <node id="2" />
+
+The correct style here is for the way not to be rendered, and for the node to be rendered as a 2px wide red dot.  If we were to process descendant selectors at the time the parent would match we would instead, process the way, and add the 2px wide red dot style to the node, then process the node and incorrectly override red with blue.
