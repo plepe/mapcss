@@ -6,14 +6,14 @@ MapCSS is a CSS-like language for map stylesheets. This repository handles the s
 * [[specification.mediawiki|Specification]]
 
 == List of software supporting MapCSS ==
-* [[Halcyon]] (flash-based renderer)
-* [[Kothic]] (python/cairo based renderer, regexp-based parser)
-* [[Ceyx]] (python/cairo based renderer)
-* [[Potlatch]] (online flash-based editor)
-* [[JOSM]] (offline Java-based editor; [https://help.openstreetmap.org/questions/22384/highlight-untagged-and-unconnected-nodes-in-a-way example])
-* [[Kothic JS]] (javascript/HTML5-based renderer)
-* [[Komap]] (mapnik stylesheet preprocessor)
-* [[Tcl-OSM]] (parser)
+* [http://wiki.openstreetmap.org/wiki/Halcyon Halcyon] (flash-based renderer)
+* [http://wiki.openstreetmap.org/wiki/Kothic Kothic] (python/cairo based renderer, regexp-based parser)
+* [http://wiki.openstreetmap.org/wiki/Ceyx Ceyx] (python/cairo based renderer)
+* [http://wiki.openstreetmap.org/wiki/Potlatch Potlatch] (online flash-based editor)
+* [http://wiki.openstreetmap.org/wiki/JOSM JOSM] (offline Java-based editor; [https://help.openstreetmap.org/questions/22384/highlight-untagged-and-unconnected-nodes-in-a-way example])
+* [http://wiki.openstreetmap.org/wiki/Kothic_JS Kothic JS] (javascript/HTML5-based renderer)
+* [http://wiki.openstreetmap.org/wiki/Komap Komap] (mapnik stylesheet preprocessor)
+* [http://wiki.openstreetmap.org/wiki/Tcl-OSM Tcl-OSM] (parser)
 * [https://github.com/Gubaer/dart-mapcss dart-mapcss] - provides an [http://www.antlr.org/ antlr] grammar for MapCSS and a generated lexer/parser in googles [http://www.dartlang.org Dart] programming language
-* [[overpass turbo#Styling|overpass turbo]] (data mining tool based on Overpass API) [http://www.openstreetmap.org/user/tyr_asd/diary/19043 More information]
+* [http://wiki.openstreetmap.org/wiki/overpass_turbo#Styling overpass turbo] (data mining tool based on Overpass API) [http://www.openstreetmap.org/user/tyr_asd/diary/19043 More information]
 * [https://github.com/plepe/pgmapcss PGMapCSS] (Runtime CSS evaluation in PostgreSQL; for use with Mapnik)
